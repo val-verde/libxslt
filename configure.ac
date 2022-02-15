@@ -94,11 +94,16 @@ dnl then add it
 dnl
 AC_MSG_CHECKING([how to pass version script to the linker ($LD)])
 VERSION_SCRIPT_FLAGS=none
+case $host in
+  *-mingw*) ;;
+  *)
 if $LD --help 2>&1 | grep "version-script" >/dev/null 2>/dev/null; then
     VERSION_SCRIPT_FLAGS=-Wl,--version-script=
 elif $LD --help 2>&1 | grep "M mapfile" >/dev/null 2>/dev/null; then
     VERSION_SCRIPT_FLAGS="-Wl,-M -Wl,"
 fi
+  ;;
+esac
 AC_MSG_RESULT([$VERSION_SCRIPT_FLAGS])
 AC_SUBST(VERSION_SCRIPT_FLAGS)
 AM_CONDITIONAL([USE_VERSION_SCRIPT], [test "$VERSION_SCRIPT_FLAGS" != none])
