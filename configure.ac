@@ -209,6 +209,7 @@ case $host in
     dnl crypto libraries
     WITH_CRYPTO=1
     CRYPTO_TESTDIR=crypto
+    EXTRA_LIBS="$EXTRA_LIBS -lntdll"
     ;;
   *)
     AC_PATH_TOOL(LIBGCRYPT_CONFIG, libgcrypt-config, no)

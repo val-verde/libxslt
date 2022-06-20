@@ -23,6 +23,10 @@ xmlParserInputPtr xmlNoNetExternalEntityLoader(const char *URL,
 #define PY_IMPORT_INT PyInt_FromLong
 #endif
 
+#ifdef _WIN32
+#include <winternl.h>
+#endif
+
 #if PY_MAJOR_VERSION >= 3
 #include <stdio.h>
 #include <unistd.h>
@@ -35,6 +39,55 @@ libxml_PyFileGet(PyObject *f) {
     const char *mode;
 
     fd = PyObject_AsFileDescriptor(f);
+
+#ifdef _WIN32
+    HMODULE hntdll = NULL;
+    IO_STATUS_BLOCK status_block;
+    FILE_ACCESS_INFORMATION ai;
+    BOOL is_read = FALSE;
+    BOOL is_write = FALSE;
+    BOOL is_append = FALSE;
+    HANDLE w_fh = _get_osfhandle(fd);
+
+    if (w_fh == -1)
+        return(NULL);
+
+    if (NtQueryInformationFile != NULL &&
+        (NtQueryInformationFile((HANDLE)w_fh,
+                               &status_block,
+                               &ai,
+                                sizeof(FILE_ACCESS_INFORMATION),
+                                8) == 0)) /* 8 means "FileAccessInformation" */
+        {
+            if (ai.AccessFlags & FILE_READ_DATA)
+                is_read = TRUE;
+            if (ai.AccessFlags & FILE_WRITE_DATA)
+                is_write = TRUE;
+            if (ai.AccessFlags & FILE_APPEND_DATA)
+                is_append = TRUE;
+
+            if (is_write && is_read)
+                if (is_append)
+                    mode = "a+";
+                else
+                    mode = "rw";
+
+            if (!is_write && is_read)
+                if (is_append)
+                    mode = "r+";
+                else
+                    mode = "r";
+
+            if (is_write && !is_read)
+                if (is_append)
+                    mode = "a";
+                else
+                    mode = "w";
+        }
+
+    if (!is_write && !is_read) /* also happens if we did not load or run NtQueryInformationFile() successfully */
+        return(NULL);
+#else
     /*
      * Get the flags on the fd to understand how it was opened
      */
@@ -61,6 +114,7 @@ libxml_PyFileGet(PyObject *f) {
 	default:
 	    return(NULL);
     }
+#endif
 
     /*
      * the FILE struct gets a new fd, so that it can be closed
